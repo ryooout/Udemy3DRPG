@@ -1,25 +1,23 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-
+using UnityEngine.UI;
 public class HumanManager : MonoBehaviour
 {
     //baseクラスを使うと、継承元にアクセスすることが可能
-    public Collider weaponCollider;
-    int maxHp = 100;
-    int hp = 100;
-    Animator animator;
-    protected virtual void Damage(int damage)
+    [SerializeField]protected Collider weaponCollider;
+    public int maxHp = 100;
+    public int hp = 100;
+    protected bool isDie;
+    [SerializeField]protected Animator animator;
+     Rigidbody rb;
+    private void Start()
     {
-        hp -= damage;
-        if (hp <= 0)
-        {
-            hp = 0;
-        }
-        Debug.Log("残りHP:" + hp);
+        hp = maxHp;
+        rb = GetComponent<Rigidbody>();
     }
     //武器の判定の有無
-    protected virtual void HideColliderWeapon()
+    public virtual void HideColliderWeapon()
     {
         weaponCollider.enabled = false;
     }
@@ -28,14 +26,27 @@ public class HumanManager : MonoBehaviour
     {
         weaponCollider.enabled = true;
     }
+    protected virtual void Damage(int damage)
+    {
+        if(isDie)
+        {
+            return;
+        }
+        if (hp <= 0)
+        {
+            hp = 0;
+            animator.SetTrigger("Die");
+            isDie = true;
+            //死んだあと動かないように
+            HideColliderWeapon();
+        }
+    }
     protected virtual void OnTriggerEnter(Collider other)
     {
         //ダメージを与えるものにぶつかったら
         Damager damager = other.GetComponent<Damager>();
         if (damager != null)
         {
-            //ダメージを与えるものにぶつかったら
-            Debug.Log("Playerはダメージを受ける");
             animator.SetTrigger("Hurt");
             Damage(damager.damage);
         }
