@@ -1,41 +1,51 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+
 public class PlayerManager : HumanManager
 {
-    float x;
-    float z;
-   public float moveSpeed ;
-    int maxHp = 100;
-    int hp = 100;
-
+    private float x;
+    private float z;
+    public float moveSpeed ;
+    [SerializeField] PlayerUiManager playerUiManager;
+    [SerializeField] private Transform target;
     Rigidbody rb;
-    Animator animator;
+    public int maxStamina = 100;
+    int stamina;
+    float time;
     // Start is called before the first frame update
     void Start()
     {
+        stamina = maxStamina;
         hp = maxHp;
-        rb = GetComponent<Rigidbody>();
-        animator = GetComponent<Animator>();
+        playerUiManager.Init(this);
         HideColliderWeapon();
+        rb = GetComponent<Rigidbody>();
     }
 
     // Update is called once per frame
     void Update()
     {
+        //入力をうけつけさせないときはReturnで返す。
+        if(isDie)
+        {
+            return;
+        }
         //キーボード入力
      x = Input.GetAxisRaw("Horizontal");
      z = Input.GetAxisRaw("Vertical");
-       
-        //攻撃入力:Spaceボタンを押したら
-        if(Input.GetKeyDown(KeyCode.Space))
+       if(Input.GetKeyDown(KeyCode.Space))
         {
-            Debug.Log("攻撃");
-            animator.SetTrigger("Attack");
+            Attack();
         }
+        IncreseStamina();
     }
     private void FixedUpdate()
     {
+        if (isDie)
+        {
+            return;
+        }
         Vector3 direction = transform.position+ new Vector3(x, 0, z) * moveSpeed;
         transform.LookAt(direction);
         //速度設定
@@ -45,17 +55,55 @@ public class PlayerManager : HumanManager
                                           //大きさを取得することが出来る
                                            //velocityの大きさ
     }
+    void IncreseStamina()
+    {
+        float span = 3.0f;
+        time += Time.deltaTime;
+        if(span<=time)
+        {
+            //スタミナの自動回復
+            stamina++;
+        }
+        if (stamina >= maxStamina)
+        {
+            stamina = maxStamina;
+        }
+        playerUiManager.UpdateStamina(stamina);
+    }
+    /// <summary>攻撃</summary>
+    void Attack()
+    {
+        if(stamina >=20)
+        {
+            stamina -= 40;
+            playerUiManager.UpdateStamina(stamina);
+            LookAtTarget();
+            animator.SetTrigger("Attack");
+        }
+    }
+    /// <summary>敵の方向を向く</summary>
+    void LookAtTarget()
+    {
+        float distance = Vector3.Distance(transform.position, target.position);
+        if(distance<=2f)
+        {
+            transform.LookAt(target);
+        }
+    }
+    /// <summary>ダメージ </summary>
+    /// <param name="damage"></param>
     protected override void Damage(int damage)
     {
         hp -= damage;
+        playerUiManager.UpdateHp(hp);
+        base.Damage(damage);
         if(hp<=0)
         {
-            hp = 0;
+            rb.velocity = Vector3.zero;
         }
-        Debug.Log("残りHP:" + hp);
     }
     //武器の判定の有無
-    protected override void HideColliderWeapon()
+    public override void HideColliderWeapon()
     {
         base.HideColliderWeapon();
     }
@@ -66,14 +114,10 @@ public class PlayerManager : HumanManager
     }
     protected override void OnTriggerEnter(Collider other)
     {
-        //ダメージを与えるものにぶつかったら
-        Damager damager = other.GetComponent<Damager>();
-        if (damager != null)
+        if (isDie)
         {
-            //ダメージを与えるものにぶつかったら
-            Debug.Log("Playerはダメージを受ける");
-            animator.SetTrigger("Hurt");
-            Damage(damager.damage);
+            return;
         }
+        base.OnTriggerEnter(other);
     }
 }
